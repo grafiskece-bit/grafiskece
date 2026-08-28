@@ -25,6 +25,8 @@ export default function Settings() {
         services: data.services || [],
         pricing: data.pricing || {},
         follow_up_intervals: data.follow_up_intervals || [7, 14, 30, 60, 90],
+        fonnte_token: data.fonnte_token || "",
+        reminder_time: data.reminder_time || "08:00",
       });
     })();
   }, []);
@@ -65,6 +67,17 @@ export default function Settings() {
         </div>
         <div><Label>Interval Follow-Up (hari, pisah koma)</Label>
           <Input value={s.follow_up_intervals.join(", ")} onChange={(e) => setS({ ...s, follow_up_intervals: e.target.value.split(",").map(x => parseInt(x.trim())).filter(Boolean) })} className="mt-1.5 rounded-xl h-11" />
+        </div>
+        <div className="pt-4 border-t border-[#E6E4E0]">
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#E05D3A] mb-3">Integrasi WhatsApp Business</div>
+          <Label>Fonnte Device Token</Label>
+          <Input value={s.fonnte_token} onChange={(e) => setS({ ...s, fonnte_token: e.target.value })} placeholder="Paste token dari dashboard Fonnte" className="mt-1.5 rounded-xl h-11" data-testid="input-fonnte-token" type="password" />
+          <p className="text-xs text-neutral-500 mt-2">Kalau token diisi, pesan akan dikirim otomatis via Fonnte (support jadwal). Kalau kosong, tombol Kirim WhatsApp akan buka wa.me.</p>
+        </div>
+        <div>
+          <Label>Waktu Pengingat Harian</Label>
+          <Input type="time" value={s.reminder_time} onChange={(e) => setS({ ...s, reminder_time: e.target.value })} className="mt-1.5 rounded-xl h-11 w-40" data-testid="input-reminder-time" />
+          <p className="text-xs text-neutral-500 mt-2">Waktu banner pengingat muncul di dasbor. Notifikasi browser aktif setelah kamu izinkan sekali.</p>
         </div>
         <Button onClick={save} disabled={saving} data-testid="btn-save-settings" className="rounded-xl bg-[#E05D3A] hover:bg-[#C74B2A] text-white">{saving ? "Menyimpan..." : "Simpan Perubahan"}</Button>
       </div>

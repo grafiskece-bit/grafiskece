@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, Copy, Send, RefreshCw, Type, Instagram, MapPin, Phone, Building2, Trash2, Plus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUi } from "@/components/ui/calendar";
+import { id as idLocale } from "date-fns/locale";
+import { ArrowLeft, Sparkles, Copy, Send, RefreshCw, Type, Instagram, MapPin, Phone, Building2, Trash2, Plus, Pencil, Calendar as CalendarIcon, X } from "lucide-react";
+import EditClientDialog from "@/components/app/EditClientDialog";
 
 const TONES = ["Ramah", "Kasual", "Profesional", "Hangat", "Sales", "Soft Selling"];
 
@@ -43,6 +47,8 @@ export default function ClientProfile() {
   const [genLoading, setGenLoading] = useState(false);
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [orderDateOpen, setOrderDateOpen] = useState(false);
   const [order, setOrder] = useState({ order_date: new Date().toISOString().slice(0, 10), service: "", project_name: "", order_value: 0, notes: "" });
 
   const load = async () => {
@@ -91,13 +97,21 @@ export default function ClientProfile() {
   const openWA = async () => {
     if (!client?.whatsapp) return toast.error("Nomor WhatsApp belum diisi");
     if (!message) return toast.error("Generate pesan dulu");
-    // record follow-up
     try {
+      const { data } = await api.post("/whatsapp/send", { client_id: id, message });
+      if (data.sent) {
+        toast.success("Pesan terkirim via Fonnte ✓");
+        load();
+        return;
+      }
+      // fallback: wa.me
       await api.post("/followups", { client_id: id, message, channel: "WhatsApp", status: "Terkirim" });
       load();
-    } catch { /* silent */ }
-    const url = `https://wa.me/${client.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+      window.open(data.wa_link, "_blank");
+    } catch (e) {
+      const msg = e?.response?.data?.detail || "Gagal kirim WhatsApp";
+      toast.error(typeof msg === "string" ? msg : "Gagal kirim");
+    }
   };
 
   const saveFollowUp = async () => {
@@ -157,10 +171,12 @@ export default function ClientProfile() {
                   <Badge className="bg-[#F0EEE9] text-neutral-800 hover:bg-[#F0EEE9]">{client.status}</Badge>
                   {client.business_category && <Badge variant="outline">{client.business_category}</Badge>}
                   {client.priority && <Badge variant="outline">Prioritas: {client.priority}</Badge>}
+                  {client.tags?.map(t => <Badge key={t} className="bg-[#FEF3EA] text-[#E05D3A] hover:bg-[#FEF3EA] rounded-md" data-testid={`tag-${t}`}>#{t}</Badge>)}
                 </div>
                 {client.notes && <p className="mt-4 text-sm text-neutral-600 italic">"{client.notes}"</p>}
               </div>
               <button onClick={deleteClient} data-testid="btn-delete-client" className="p-2 rounded-lg text-neutral-400 hover:text-[#D93B3B] hover:bg-red-50" aria-label="Hapus klien"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => setEditOpen(true)} data-testid="btn-edit-client" className="p-2 rounded-lg text-neutral-500 hover:text-[#E05D3A] hover:bg-[#F0EEE9]" aria-label="Edit klien"><Pencil className="w-4 h-4" /></button>
             </div>
             <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-[#E6E4E0]">
               <div><div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Total Order</div><div className="font-heading font-bold text-xl mt-1">{client.orders_count}</div></div>
@@ -233,10 +249,31 @@ export default function ClientProfile() {
               <Dialog open={orderOpen} onOpenChange={setOrderOpen}>
                 <DialogTrigger asChild><Button size="sm" variant="ghost" data-testid="btn-add-order"><Plus className="w-4 h-4" /></Button></DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Tambah Order</DialogTitle></DialogHeader>
+                  <DialogHeader>
+                    <div className="flex items-center justify-between">
+                      <DialogTitle>Tambah Order</DialogTitle>
+                      <DialogClose asChild><button data-testid="btn-close-order" className="p-1.5 rounded-lg hover:bg-[#F0EEE9]" aria-label="Tutup"><X className="w-4 h-4" /></button></DialogClose>
+                    </div>
+                  </DialogHeader>
                   <div className="space-y-3">
-                    <div><Label>Tanggal</Label><Input type="date" value={order.order_date} onChange={(e) => setOrder({ ...order, order_date: e.target.value })} /></div>
-                    <div><Label>Layanan</Label><Input value={order.service} onChange={(e) => setOrder({ ...order, service: e.target.value })} placeholder="Logo Design" /></div>
+                    <div><Label>Tanggal</Label>
+                      <Popover open={orderDateOpen} onOpenChange={setOrderDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start font-normal mt-1" data-testid="order-date-picker"><CalendarIcon className="w-4 h-4 mr-2" />{order.order_date || "Pilih tanggal"}</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarUi mode="single" locale={idLocale} selected={order.order_date ? new Date(order.order_date) : undefined} onSelect={(d) => { setOrder({ ...order, order_date: d ? d.toISOString().slice(0, 10) : "" }); setOrderDateOpen(false); }} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div><Label>Layanan</Label>
+                      <Select value={order.service} onValueChange={(v) => setOrder({ ...order, service: v })}>
+                        <SelectTrigger className="mt-1" data-testid="order-service"><SelectValue placeholder="Pilih layanan" /></SelectTrigger>
+                        <SelectContent>
+                          {["Logo Design", "Branding", "Social Media Design", "Instagram Carousel", "Instagram Reels", "Video Editing", "Content Creation", "Wedding Design", "Poster", "Flyer", "Packaging", "Lainnya"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div><Label>Nama Project</Label><Input value={order.project_name} onChange={(e) => setOrder({ ...order, project_name: e.target.value })} /></div>
                     <div><Label>Nilai (Rp)</Label><Input type="number" value={order.order_value} onChange={(e) => setOrder({ ...order, order_value: e.target.value })} /></div>
                     <div><Label>Catatan</Label><Input value={order.notes} onChange={(e) => setOrder({ ...order, notes: e.target.value })} /></div>
@@ -278,6 +315,7 @@ export default function ClientProfile() {
           </div>
         </div>
       </div>
+      <EditClientDialog client={client} open={editOpen} onOpenChange={setEditOpen} onSaved={() => { load(); analyze(); }} />
     </div>
   );
 }

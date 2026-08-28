@@ -5,6 +5,7 @@ import api, { formatIDR } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Users, MessageSquare, TrendingUp, Sparkles, Clock, Flame, ArrowRight } from "lucide-react";
 import ClientCard from "@/components/app/ClientCard";
+import ReminderBanner from "@/components/app/ReminderBanner";
 import { useAuth } from "@/lib/auth";
 
 const StatCard = ({ label, value, hint, icon: Icon, accent }) => (
@@ -52,6 +53,8 @@ export default function Dashboard() {
           <Sparkles className="w-4 h-4 mr-2" /> Generate Follow-Up Hari Ini
         </Button>
       </div>
+
+      <ReminderBanner />
 
       {loading ? (
         <div className="text-neutral-500">Memuat data...</div>

@@ -112,6 +112,7 @@ class ClientUpdate(BaseModel):
     priority: Optional[str] = None
     preferred_channel: Optional[str] = None
     next_follow_up_date: Optional[str] = None
+    opportunity_score_override: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class FollowUpIn(BaseModel):
@@ -133,6 +134,14 @@ class SettingsIn(BaseModel):
     ai_tone: str = "Ramah"
     currency: str = "Rp"
     business_description: str = ""
+    fonnte_token: str = ""
+    reminder_time: str = "08:00"
+
+
+class WhatsAppSendIn(BaseModel):
+    client_id: str
+    message: str
+    schedule_at: Optional[str] = None  # ISO datetime for scheduling
 
 
 class GenerateMessageIn(BaseModel):
@@ -203,6 +212,8 @@ async def register(data: RegisterInput):
         "ai_tone": "Ramah",
         "currency": "Rp",
         "business_description": "Freelance graphic designer & content creator",
+        "fonnte_token": "",
+        "reminder_time": "08:00",
     })
     # seed sample data
     await seed_sample_data(user_id)
@@ -226,6 +237,9 @@ async def me(user=Depends(get_current_user)):
 
 # ================= OPPORTUNITY SCORE =================
 def compute_opportunity_score(client: dict, orders: List[dict]) -> int:
+    override = client.get("opportunity_score_override")
+    if isinstance(override, int) and 0 <= override <= 100:
+        return override
     if not orders:
         # never ordered: neutral-low score
         return 35
@@ -330,10 +344,17 @@ async def get_client(client_id: str, user=Depends(get_current_user)):
 
 @api_router.patch("/clients/{client_id}")
 async def update_client(client_id: str, data: ClientUpdate, user=Depends(get_current_user)):
-    updates = {k: v for k, v in data.model_dump().items() if v is not None}
-    if not updates:
+    raw = data.model_dump(exclude_unset=True)
+    set_fields = {k: v for k, v in raw.items() if v is not None}
+    unset_fields = {k: "" for k, v in raw.items() if v is None}
+    if not set_fields and not unset_fields:
         return {"ok": True}
-    r = await db.clients.update_one({"id": client_id, "user_id": user["id"]}, {"$set": updates})
+    update_op = {}
+    if set_fields:
+        update_op["$set"] = set_fields
+    if unset_fields:
+        update_op["$unset"] = unset_fields
+    r = await db.clients.update_one({"id": client_id, "user_id": user["id"]}, update_op)
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Klien tidak ditemukan")
     return {"ok": True}
@@ -409,14 +430,103 @@ async def create_followup(data: FollowUpIn, user=Depends(get_current_user)):
     doc["id"] = str(uuid.uuid4())
     doc["user_id"] = user["id"]
     doc["created_at"] = now_iso()
+    # auto-schedule next follow-up from settings intervals if not provided
+    if not doc.get("next_follow_up_date"):
+        settings = await db.settings.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+        intervals = settings.get("follow_up_intervals") or [7, 14, 30, 60, 90]
+        # count previous followups to pick interval progressively
+        prev = await db.followups.count_documents({"user_id": user["id"], "client_id": doc["client_id"]})
+        idx = min(prev, len(intervals) - 1)
+        days = intervals[idx]
+        doc["next_follow_up_date"] = (datetime.now(timezone.utc) + timedelta(days=days)).date().isoformat()
     await db.followups.insert_one(doc)
-    # update client last_follow_up_date
-    update = {"last_follow_up_date": doc["created_at"], "follow_up_status": "Sudah Dihubungi"}
-    if doc.get("next_follow_up_date"):
-        update["next_follow_up_date"] = doc["next_follow_up_date"]
+    update = {"last_follow_up_date": doc["created_at"], "follow_up_status": "Sudah Dihubungi", "next_follow_up_date": doc["next_follow_up_date"]}
     await db.clients.update_one({"id": doc["client_id"], "user_id": user["id"]}, {"$set": update})
     doc.pop("_id", None)
     return doc
+
+
+# ================= WHATSAPP (FONNTE) =================
+@api_router.post("/whatsapp/send")
+async def whatsapp_send(data: WhatsAppSendIn, user=Depends(get_current_user)):
+    """Send WhatsApp via Fonnte if user has token; otherwise return wa_link fallback."""
+    c = await db.clients.find_one({"id": data.client_id, "user_id": user["id"]}, {"_id": 0})
+    if not c:
+        raise HTTPException(status_code=404, detail="Klien tidak ditemukan")
+    if not c.get("whatsapp"):
+        raise HTTPException(status_code=400, detail="Nomor WhatsApp klien belum diisi")
+    settings = await db.settings.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    token = settings.get("fonnte_token", "").strip()
+    target = c["whatsapp"].replace("+", "").replace(" ", "")
+    if not token:
+        # fallback
+        return {
+            "sent": False,
+            "fallback": "wa.me",
+            "wa_link": f"https://wa.me/{target}?text={data.message}",
+        }
+    # Send via Fonnte
+    import httpx
+    form = {"target": target, "message": data.message, "countryCode": "62"}
+    if data.schedule_at:
+        try:
+            dt = datetime.fromisoformat(data.schedule_at.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            form["schedule"] = str(int(dt.timestamp()))
+        except Exception:
+            pass
+    multipart = {k: (None, v) for k, v in form.items()}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as hc:
+            resp = await hc.post("https://api.fonnte.com/send", headers={"Authorization": token}, files=multipart)
+            resp.raise_for_status()
+            result = resp.json()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Fonnte timeout, coba lagi")
+    except Exception as e:
+        raise HTTPException(502, f"Fonnte error: {e}")
+    if result.get("status") is not True:
+        reason = result.get("reason", "Fonnte menolak")
+        raise HTTPException(400, f"Fonnte gagal: {reason}")
+    # Record follow-up
+    await db.followups.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "client_id": data.client_id,
+        "message": data.message,
+        "channel": "WhatsApp (Fonnte)",
+        "status": "Terjadwal" if data.schedule_at else "Terkirim",
+        "response": "",
+        "notes": "",
+        "next_follow_up_date": None,
+        "created_at": now_iso(),
+        "fonnte_id": result.get("id"),
+    })
+    await db.clients.update_one({"id": data.client_id, "user_id": user["id"]}, {"$set": {"last_follow_up_date": now_iso(), "follow_up_status": "Sudah Dihubungi"}})
+    return {"sent": True, "scheduled": bool(data.schedule_at), "fonnte_id": result.get("id"), "detail": result.get("detail")}
+
+
+# ================= REMINDERS =================
+@api_router.get("/reminders/today")
+async def reminders_today(user=Depends(get_current_user)):
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    clients = await db.clients.find({"user_id": user["id"], "next_follow_up_date": {"$lte": today_iso + "T99:99"}}, {"_id": 0}).to_list(1000)
+    due = [c for c in clients if c.get("next_follow_up_date") and c["next_follow_up_date"][:10] <= today_iso]
+    # enrich
+    orders = await db.orders.find({"user_id": user["id"]}, {"_id": 0}).to_list(10000)
+    obc = {}
+    for o in orders:
+        obc.setdefault(o["client_id"], []).append(o)
+    for c in due:
+        co = obc.get(c["id"], [])
+        c["opportunity_score"] = compute_opportunity_score(c, co)
+        c["last_service"] = max(co, key=lambda o: o.get("order_date", ""))["service"] if co else None
+        c["total_spending"] = sum(o.get("order_value", 0) for o in co)
+        last = max((o.get("order_date", "") for o in co), default=None)
+        c["days_since_last_order"] = days_between(last) if last else None
+    due.sort(key=lambda x: x.get("opportunity_score", 0), reverse=True)
+    return {"date": today_iso, "count": len(due), "clients": due}
 
 
 # ================= DASHBOARD =================
@@ -728,7 +838,9 @@ async def ai_recommendations(user=Depends(get_current_user)):
 async def get_settings(user=Depends(get_current_user)):
     s = await db.settings.find_one({"user_id": user["id"]}, {"_id": 0})
     if not s:
-        s = {"user_id": user["id"], "business_name": user["name"], "services": [], "pricing": {}, "follow_up_intervals": [7, 14, 30, 60, 90], "whatsapp_number": "", "ai_tone": "Ramah", "currency": "Rp", "business_description": ""}
+        s = {"user_id": user["id"], "business_name": user["name"], "services": [], "pricing": {}, "follow_up_intervals": [7, 14, 30, 60, 90], "whatsapp_number": "", "ai_tone": "Ramah", "currency": "Rp", "business_description": "", "fonnte_token": "", "reminder_time": "08:00"}
+    s.setdefault("fonnte_token", "")
+    s.setdefault("reminder_time", "08:00")
     return s
 
 
@@ -857,6 +969,10 @@ async def seed_sample_data(user_id: str):
             "last_follow_up_date": None,
             "next_follow_up_date": None,
         }
+        # seed some clients with next_follow_up_date near today for reminder demo
+        if idx in [0, 4, 8, 11]:
+            offset = random.choice([-2, -1, 0, 0, 1])
+            doc["next_follow_up_date"] = (today + timedelta(days=offset)).date().isoformat()
         await db.clients.insert_one(doc)
 
         # generate 1-5 orders

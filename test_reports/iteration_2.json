@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 2 full test: 50/50 backend pytest passed (35 regression from iteration 1 + 15 new tests for /whatsapp/send, /reminders/today, opportunity_score_override, follow-up auto-schedule, fonnte_token/reminder_time settings). Frontend E2E via Playwright on public URL with a freshly registered seeded account: reminder banner (3 clients + dismiss/localStorage persistence), Edit Client dialog (prefill, cancel, save, status/priority/override reflected on profile score ring = 93 Hot and persisted), Add Order dialog (shadcn Popover+Calendar date picker, 12-option service Select, order created), WhatsApp wa.me fallback (popup opened + follow-up recorded), Calendar page tabs with order underline + follow-up highlight markers, Settings Fonnte token (type=password) + reminder time persisted after navigation. Two real defects found: date-picker Popover never auto-closes (blocks next control) and the manual opportunity score override can never be cleared back to auto.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/clients/{id}", "issue": "Nulls are stripped (updates = {k:v for ... if v is not None}), so opportunity_score_override / next_follow_up_date can never be cleared once set. Needs $unset (or sentinel) support so the score falls back to the computed value."},
+      {"endpoint": "PATCH /api/clients/{id}", "issue": "opportunity_score_override has no Pydantic bounds (ge=0, le=100). Value 150 is accepted and silently stored; compute_opportunity_score ignores it so UI shows the computed score while DB holds an invalid value (confusing state, no 422)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClientProfile Add Order dialog / EditClientDialog", "issue": "shadcn Popover wrapping Calendar does not close after a date is selected. The popper content overlays the form, so the next control (service Select / Simpan) cannot be clicked until the user presses Escape or clicks outside first. Fix: control Popover open state and setOpen(false) inside onSelect.", "selector": "[data-testid=\"order-date-picker\"], [data-testid=\"edit-nextdate\"]", "priority": "HIGH"},
+      {"component": "EditClientDialog", "issue": "Clearing 'Skor Peluang Manual' does nothing - payload deletes the key when blank, so the override (93) stays forever and there is no way back to automatic scoring.", "selector": "[data-testid=\"edit-score\"]", "priority": "MEDIUM"},
+      {"component": "ClientProfile header", "issue": "Client tags edited/saved in the Edit dialog are persisted in the API but never rendered anywhere on the client profile (only status, business_category, priority badges are shown), so the user gets no feedback that tags were saved.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings", "issues": ["'Waktu Pengingat Harian' uses the native browser <input type=time> picker while all date fields use the shadcn Calendar - inconsistent but acceptable for time input"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter2_results.xml",
+    "/app/test_reports/pytest/regression_results.xml"
+  ],
+  "action_items": [
+    "Make the Calendar Popover close on date select (controlled open state) in ClientProfile order dialog and EditClientDialog - currently blocks clicking the service dropdown / save button",
+    "Support clearing opportunity_score_override (send null and $unset it in PATCH /api/clients/{id}) so score returns to auto-computed",
+    "Add ge=0/le=100 validation for opportunity_score_override in ClientUpdate",
+    "Render client tags on the ClientProfile header so edited tags are visible"
+  ],
+  "critical_code_review_comments": [
+    "PATCH /api/clients strips all None values - no field can ever be reset; consider model_dump(exclude_unset=True) plus explicit $unset for nulls",
+    "/api/reminders/today builds a bogus Mongo filter ({'$lte': today+'T99:99'}) and then re-filters in Python; the query is misleading and relies on BSON type ordering - filter properly on the ISO date prefix or store dates uniformly",
+    "server.py is 1032 lines - consider splitting routers (clients/orders/followups/ai/settings) into modules",
+    "httpx and json are imported inside functions (whatsapp_send, ai_analyze); move to module-level imports"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration2.py"],
+  "success_rate": {"backend": "100% (50/50 pytest)", "frontend": "~85% (all new flows work; 2 UI defects require workarounds)"},
+  "seed_data_creation": "Registered UI test account test899171@clientrevive.ai / testpass1 (auto-seeded 15 clients). Its client 'Maya Sari' (9744c05e-a743-4008-8c7c-b8533a960574) now has opportunity_score_override=93, status VIP, priority Tinggi, an extra 'Poster' order (12 Aug 2026) and one WhatsApp follow-up. Fonnte token was set during testing then cleared back to empty. pytest also registers TEST_*@clientrevivetest.com throwaway users.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "demo@clientrevive.ai / demo1234 (from /app/memory/test_credentials.md); UI test account test899171@clientrevive.ai / testpass1",
+  "context_for_next_testing_agent": "Backend suites: /app/backend/tests/backend_test.py (35 regression) + /app/backend/tests/test_iteration2.py (15 new). Run with `cd /app/backend && python -m pytest tests/ -v` (pytest.ini forces -n 2 --dist loadscope). Frontend flows verified: register->reminder banner, edit client dialog, order date-picker+service select, wa.me fallback, calendar tabs, settings persistence. When automating date pickers you must press Escape after picking a date (popover stays open) - remove that workaround once the fix lands. Settings persistence looks flaky if you page.reload() immediately after clicking save (PUT may be aborted) - wait ~3s or use page.goto instead.",
+  "rca_of_the_issue": "Popover bug: both date pickers use an uncontrolled <Popover> with <Calendar onSelect=...>; radix keeps the popper mounted after selection and its content wrapper covers the dialog body, so the following control is pointer-blocked. Override-clear bug: EditClientDialog does `if (payload.opportunity_score_override === null) delete payload.opportunity_score_override;` and PATCH /api/clients drops None values, so the stored override is never removed."
+}
