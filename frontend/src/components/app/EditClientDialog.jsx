@@ -20,6 +20,7 @@ const CHANNELS = ["WhatsApp", "Email", "Instagram", "Telepon"];
 export default function EditClientDialog({ client, open, onOpenChange, onSaved }) {
   const [f, setF] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
 
   useEffect(() => {
     if (client && open) {
@@ -64,7 +65,6 @@ export default function EditClientDialog({ client, open, onOpenChange, onSaved }
   };
 
   const nextDate = f.next_follow_up_date ? new Date(f.next_follow_up_date) : undefined;
-  const [dateOpen, setDateOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
