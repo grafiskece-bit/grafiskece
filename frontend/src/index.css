@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #F9F8F6;
+    color: #1A1A1A;
+}
+
+h1, h2, h3, h4, h5, .font-heading {
+    font-family: 'Epilogue', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+@layer base {
+    :root {
+        --background: 40 20% 97%;
+        --foreground: 0 0% 10%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 10%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 10%;
+        --primary: 14 73% 55%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 40 15% 94%;
+        --secondary-foreground: 0 0% 10%;
+        --muted: 40 15% 94%;
+        --muted-foreground: 0 0% 40%;
+        --accent: 14 73% 96%;
+        --accent-foreground: 14 73% 35%;
+        --destructive: 0 65% 55%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 36 15% 90%;
+        --input: 36 15% 90%;
+        --ring: 14 73% 55%;
+        --chart-1: 14 73% 55%;
+        --chart-2: 145 51% 36%;
+        --chart-3: 43 84% 62%;
+        --chart-4: 200 40% 45%;
+        --chart-5: 280 30% 55%;
+        --radius: 0.875rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d9d5cf; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #b8b1a6; }
+
+/* Card layered shadow */
+.card-elevated {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02), 0 8px 24px rgba(26,26,26,0.04);
+    transition: box-shadow 200ms ease-out, transform 200ms ease-out;
+}
+.card-elevated:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03), 0 16px 40px rgba(26,26,26,0.08);
+}
+
+/* Score ring animation */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease-out both; }
+
+.grain {
+    background-image: radial-gradient(rgba(26,26,26,0.02) 1px, transparent 1px);
+    background-size: 3px 3px;
+}

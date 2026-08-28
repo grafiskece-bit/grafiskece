@@ -1,0 +1,49 @@
+{
+  "summary": "Full first-pass E2E test of ClientRevive AI. Backend: 35 pytest cases across auth/register+seed, clients CRUD, orders CRUD, follow-ups, dashboard summary, settings, AI (generate-message + shorter modifier, analyze, recommendations), auth enforcement and multi-tenant data isolation - all 35 PASSED (100%). Frontend: login with demo@clientrevive.ai, all 8 dashboard stat cards, revenue banner, 8 today's follow-up cards, all 8 sidebar nav routes, Clients page (7 filters + search + Tambah Klien dialog), Client profile (AI analysis w/ score ring 42, layanan/tawaran/timing, order history), AI message generator (325-char Indonesian message, Persingkat produced 235 chars, Salin copies, Kirim WhatsApp opens wa.me with prefilled text and records follow-up which appears in Riwayat Follow-Up + Tindak Lanjut page), Rekomendasi AI (10 ranked clients + 3 KPIs), Settings load/save/persist, Orders, Kalender, Analitik charts, logout. No blocking defects found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/dashboard/summary", "issue": "Stale 500s found in backend.err.log (TypeError: '>=' not supported between NoneType and int at old server.py:457 in dashboard_summary). Tracebacks predate the last server.py hot-reload and are NOT reproducible on the current code (days=None is now guarded). Flagged for awareness only."},
+      {"endpoint": "GET /api/ai/recommendations", "issue": "recommended_offer prices use US thousand separators: f\"Rp {price:,.0f}\" -> 'Rp 500,000'. Rest of app (formatIDR) renders 'Rp 500.000'. Inconsistent currency formatting in an id-ID UI."},
+      {"endpoint": "POST /api/followups", "issue": "Sets client.follow_up_status = 'Contacted' (English) while ClientIn default and UI filters use Bahasa values ('Belum Dihubungi'). Value never matches any UI filter."},
+      {"endpoint": "GET /api/dashboard/summary vs GET /api/clients", "issue": "Clients with zero orders are counted as dormant (days=9999) in dashboard_summary but /clients returns days_since_last_order=null, and Clients page filters treat null as 0 -> dormant_30 (16) does not match the 30+ filter list (14). Inconsistent dormancy definition."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClientProfile.copyMsg", "issue": "await navigator.clipboard.writeText() has no try/catch. When clipboard permission is denied the unhandled rejection triggers the webpack-dev-server error overlay iframe, which then intercepts pointer events and blocks every subsequent click on the page (reproduced: Kirim WhatsApp and sidebar nav clicks timed out). Needs try/catch + fallback + toast.error.", "selector": "[data-testid=\"btn-copy\"]", "priority": "MEDIUM"},
+      {"component": "Calendar (Kalender)", "issue": "shadcn Calendar month/weekday labels are English ('August 2026', 'Su Mo Tu') in an otherwise fully Bahasa Indonesia UI. Pass locale={id} from date-fns.", "selector": "nav-calendar page", "priority": "LOW"},
+      {"component": "Analytics (Analitik)", "issue": "Recharts console warning 'The width(-1) and height(-1) of chart should be greater than 0' on mount (ResponsiveContainer in a zero-width container during route transition). Cosmetic but noisy.", "selector": ".recharts-surface", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "AI message generation", "issue": "First generate attempt returned empty after 16s while the /ai/analyze call was still in flight; the AI call can take 15-25s. Second run succeeded (325 chars). Consider showing a skeleton/progress and a client-side timeout+retry so the user does not see an empty textarea.", "affected_selectors": ["[data-testid=\"btn-generate\"]", "[data-testid=\"textarea-message\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Dashboard / global", "issues": ["No issues found: contrast, spacing, card grid, footer and terracotta CTA all render correctly at 1920x1080"]},
+      {"screen": "Rekomendasi AI", "issues": ["Offer prices show 'Rp 500,000' (comma) vs 'Rp 1.967.633' (dot) on the same screen - visually inconsistent"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Wrap navigator.clipboard.writeText in try/catch in ClientProfile.copyMsg (prevents dev-overlay from blocking all clicks)",
+    "Use dot thousand separators for recommended_offer prices in /api/ai/recommendations (match formatIDR)",
+    "Use Bahasa value (e.g. 'Sudah Dihubungi') instead of 'Contacted' in POST /api/followups client update",
+    "Align dormancy definition for zero-order clients between /dashboard/summary (9999) and Clients page filters (null->0)",
+    "Set date-fns id locale on the Kalender shadcn Calendar",
+    "Optional: split /app/backend/server.py (917 lines) into routers (auth, clients, orders, ai, settings)"
+  ],
+  "critical_code_review_comments": [
+    "ClientProfile.copyMsg lacks error handling on an async Web API - the only real click-blocking defect found",
+    "server.py is 917 lines; AI prompts, seed data and routes should be modularised",
+    "compute_opportunity_score / days_between logic duplicated across list_clients, get_client, dashboard_summary and ai_recommendations (4 copies of the same enrichment block) - extract a shared enrich_client() helper",
+    "ai_analyze silently falls back to a hardcoded Indonesian recommendation on JSON parse failure; consider returning a flag so UI can indicate the analysis is generic"
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (35/35 pytest)", "frontend": "~95% (all flows pass; clipboard error-handling defect + 2 i18n/cosmetic issues)"},
+  "seed_data_creation": "Registered throwaway users TEST_<hex>@clientrevivetest.com (auto-seeded 15 clients) for isolation/seed tests; created and deleted TEST_ clients/orders/follow-ups under the demo user. One leftover UI-created client 'QA Playwright Klien' and one follow-up record for Sarah Wijaya remain under demo@clientrevive.ai (demo client count is now 17, not 15).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "demo@clientrevive.ai / demo1234 (verified working; /app/memory/test_credentials.md is accurate)",
+  "context_for_next_testing_agent": "Regression suite at /app/backend/tests/backend_test.py (run: pytest /app/backend/tests/backend_test.py -v). Note: register requires a real TLD - '.test' domains are rejected by EmailStr, use @clientrevivetest.com. Demo user now has 17 clients and 1 follow-up, so hardcoding total_clients==15 for the demo account will fail; use a freshly registered user for seed-count assertions (fresh_user fixture). Frontend testids verified: stat-total-klien, stat-dormant-30+, stat-klien-vip/high, client-card-{id}, filter-{all|30|60|90|vip|hot|never}, rec-{id}, btn-generate, btn-copy, btn-whatsapp, nav-*. Grant clipboard permissions before clicking btn-copy or the webpack dev overlay will block subsequent clicks.",
+  "rca_of_the_issue": "Click-blocking RCA: clicking Salin without clipboard permission rejects navigator.clipboard.writeText; because copyMsg does not catch it, CRA's webpack-dev-server injects an error overlay iframe (#webpack-dev-server-client-overlay) over the viewport, which intercepts pointer events and makes every later click (Kirim WhatsApp, sidebar nav) time out. Fix = try/catch + toast fallback in ClientProfile.copyMsg."
+}

@@ -1,0 +1,110 @@
+{
+  "theme": "light",
+  "archetype": "ORGANIC_AND_EARTHY",
+  "colors": {
+    "background": "#F9F8F6",
+    "surface": "#FFFFFF",
+    "primary": "#E05D3A",
+    "primary_hover": "#C74B2A",
+    "text_primary": "#1A1A1A",
+    "text_secondary": "#5C5C5C",
+    "border": "#E6E4E0",
+    "success": "#2D8A56",
+    "warning": "#F2C94C",
+    "danger": "#D93B3B"
+  },
+  "typography": {
+    "font_family": {
+      "heading": "'Epilogue', sans-serif",
+      "body": "'DM Sans', sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight text-[#1A1A1A]",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-[#1A1A1A]",
+      "h3": "text-xl sm:text-2xl font-semibold text-[#1A1A1A]",
+      "h4": "text-lg sm:text-xl font-medium text-[#1A1A1A]",
+      "body": "text-base text-[#5C5C5C] leading-relaxed",
+      "small": "text-sm text-[#5C5C5C]",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-[#E05D3A]"
+    }
+  },
+  "layouts": {
+    "spacing_system": "Generous spacing: use p-6 to p-8 for cards, gap-6 to gap-8 for grids.",
+    "dashboard_grid": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 tight gap (gap-6). High Density Grid for Analytics.",
+    "sidebar": "Persistent on desktop (w-64 or w-72). Hidden on mobile (use Shadcn Sheet as hamburger menu).",
+    "card_style": "bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-[#E6E4E0] p-6"
+  },
+  "motion": {
+    "hover_state": "Slight lift -translate-y-1, shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-200 ease-out",
+    "entrance": "Staggered fade-up for list items using framer-motion.",
+    "micro_interactions": "Active states must have scale down (scale-95) and subtle color shift."
+  },
+  "components": {
+    "charts": "Use Recharts (Shadcn Chart). Ensure colors map to brand palette (Primary Terracotta and Warning Yellow).",
+    "buttons": "Pill-shaped (rounded-full) or smooth rounded (rounded-xl). Primary button bg-[#E05D3A] text-white hover:bg-[#C74B2A].",
+    "inputs": "Shadcn input with rounded-xl, bg-white border-[#E6E4E0] focus:ring-2 focus:ring-[#E05D3A]/20 focus:border-[#E05D3A].",
+    "gauge": "For opportunity score, use Recharts radial bar or custom SVG circular progress with #E05D3A.",
+    "table": "Shadcn Table for Client list. Minimal borders, padding-y-4 for breathing room."
+  },
+  "responsive": {
+    "breakpoint": "Mobile-first. Use flex-col on mobile, reflowing to flex-row or grid on md and lg.",
+    "layout": "Data cards occupy full width on mobile. Side-by-side charts stack vertically.",
+    "typography": "Scale down h1 to text-3xl on mobile. Ensure tap targets are minimum 44px (h-11).",
+    "overflow_guard": "Ensure tables have overflow-x-auto. Use w-full and max-w-full to prevent horizontal scrolling.",
+    "tap_targets": "Interactive elements are comfortable, easily-tappable sizes minimum 44x44px."
+  },
+  "media": {
+    "icons": "lucide-react. Keep stroke-width consistent (1.5 or 2).",
+    "images": [
+      {
+        "url": "https://images.pexels.com/photos/4450147/pexels-photo-4450147.jpeg",
+        "description": "User Avatar (Freelancer/Designer)",
+        "category": "user_avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1609436132311-e4b0c9370469",
+        "description": "Client 1 Avatar",
+        "category": "client_avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
+        "description": "Client 2 Avatar",
+        "category": "client_avatar"
+      },
+      {
+        "url": "https://images.pexels.com/photos/29852895/pexels-photo-29852895.jpeg",
+        "description": "Client 3 Avatar",
+        "category": "client_avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1751031388417-ee6a246d3e65",
+        "description": "Abstract warm geometric art for empty states or opportunity insight cards",
+        "category": "empty_state"
+      }
+    ]
+  },
+  "accessibility": {
+    "contrast": "Ensure white text on #E05D3A meets 4.5:1 ratio. Text colors are rich charcoal #1A1A1A (never pure black).",
+    "focus": "All focusable elements must have focus:ring-2 focus:ring-[#E05D3A]/50 focus:outline-none.",
+    "aria": "Use aria-labels for icon-only buttons (like WhatsApp icon button)."
+  },
+  "instructions_to_main_agent": [
+    "Language MUST be Bahasa Indonesia for all UI elements (Dasbor, Klien, Tindak Lanjut, Rekomendasi AI, Pesanan, Kalender, Analitik, Pengaturan).",
+    "Do NOT use typical Vercel/Stripe 'AI-slop' gradients. Stick to the solid warm palette (Terracotta and Sand) with high quality textures if any.",
+    "Do NOT use Inter or Space Grotesk font. Import and use 'Epilogue' for headings and 'DM Sans' for body from Google Fonts.",
+    "Build a mobile-first responsive layout. Desktop: fixed sidebar (w-64). Mobile: hide sidebar and use Shadcn Sheet as a hamburger menu.",
+    "For the 'Smart Recommendations' section, display cards detailing 'Rekomendasi Penjualan Hari Ini' (What Should I Sell Today?) featuring top clients.",
+    "Implement the 'Opportunity Score' (Skor Peluang) as a circular gauge or clear visual indicator on the Client Profile page.",
+    "Ensure the AI Message Generator has a Tone Selector (Formal, Santai, Persuasif) and a WhatsApp send button.",
+    "All interactive and key informational elements MUST include a data-testid attribute in kebab-case format.",
+    "App must feel like a premium CRM for creatives. Utilize generous spacing and avoid clutter. Emphasize the Terracotta (#E05D3A) primary color for distinct CTAs."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "Prioritize pre-existing Shadcn components from src/components/ui.",
+    "Use sonner for toast notifications.",
+    "Do not center align the whole App container. Keep text-alignment human-readable (left-aligned mostly).",
+    "Apply layered shadows (ambient + direct) for depth, not harsh borders.",
+    "Never use AI assistant Emoji characters (🤖🧠💡) as icons. Use Lucide icons instead.",
+    "Do NOT use completely transparent backgrounds for dropdowns or headers over content. Use solid bg or heavy blur + slight tint."
+  ]
+}
