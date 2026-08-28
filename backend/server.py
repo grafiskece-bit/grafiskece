@@ -697,6 +697,7 @@ async def ai_generate_message(data: GenerateMessageIn, user=Depends(get_current_
 
     prompt = f"{ctx}\n\nINSTRUKSI: {instruction}\n\nAnalisis riwayat klien, temukan hook natural (misal referensi project sebelumnya), lalu tawarkan layanan yang relevan tanpa terkesan memaksa."
 
+    text = ""
     try:
         text = await gen_ai_text(system, prompt, session_id=f"msg-{data.client_id}")
     except Exception as e:

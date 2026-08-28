@@ -17,7 +17,7 @@ export default function Recommendations() {
     } catch { toast.error("Gagal memuat rekomendasi"); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   return (
     <div className="space-y-6">

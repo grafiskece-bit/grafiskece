@@ -70,7 +70,7 @@ export default function Analytics() {
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie data={serviceData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
-                      {serviceData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      {serviceData.map((entry, i) => <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Tooltip />

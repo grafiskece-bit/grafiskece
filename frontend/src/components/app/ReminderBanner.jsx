@@ -30,9 +30,11 @@ export default function ReminderBanner() {
             localStorage.setItem(shownKey, "1");
           }
         }
-      } catch { /* silent */ }
+      } catch (err) {
+        console.error("Failed to load today's reminders:", err);
+      }
     })();
-  }, []);
+  }, [today]);
 
   const requestPermission = async () => {
     if (!("Notification" in window)) return;

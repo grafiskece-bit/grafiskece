@@ -36,7 +36,7 @@ export default function Clients() {
     } catch { toast.error("Gagal memuat klien"); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const filtered = useMemo(() => {
     let arr = [...clients];
