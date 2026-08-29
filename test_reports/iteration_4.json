@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only verification of the Vercel build hot-fix (date-fns downgrade to ^3.6.0 + .npmrc legacy-peer-deps + vercel.json). Verified config files, ran `yarn build` (SUCCESS, 'The build folder is ready to be deployed.'), ran isolated npm install --dry-run --package-lock-only with the project package.json + .npmrc (SUCCESS, 'up to date', no ERESOLVE), and confirmed strict npm WITHOUT .npmrc still fails with ERESOLVE (proving .npmrc is required). Runtime regression tested in the live preview app: login as demo@clientrevive.ai, dashboard, /kalender calendar renders 'Agustus 2026' with all Bahasa Indonesia weekday labels (Sen/Sel/Rab/Kam/Jum/Sab/Min), and Add Order dialog date Popover + react-day-picker Calendar works (selected 2026-08-06, popover closed, label updated). Zero console/page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tambah Order dialog / Edit Client dialog", "issues": ["Two overlapping close 'X' icons render in the dialog header: shadcn DialogContent (components/ui/dialog.jsx line ~39) already renders a built-in close X, and the custom header also renders its own DialogClose X (e.g. EditClientDialog.jsx line 76). Cosmetic only - remove one of them.", "In the Add Order dialog the date Popover opens overlaying the Layanan/Nama Project fields; acceptable but slightly cramped."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_4.json"],
+  "action_items": [
+    "NOTE (already handled by tester, no code change): the running dev server was serving a STALE webpack cache after the date-fns swap and showed 127 compile errors ('export format was not found in date-fns (module has no exports)'). Fixed by `rm -rf /app/frontend/node_modules/.cache && sudo supervisorctl restart frontend`. On-disk code was correct - yarn build always passed. Remember to clear node_modules/.cache after any dependency version swap.",
+    "Optional cosmetic: remove the duplicate close X in dialogs that add their own DialogClose on top of shadcn's built-in one."
+  ],
+  "critical_code_review_comments": [
+    "vercel.json installCommand 'yarn install --frozen-lockfile || npm install --legacy-peer-deps' is safe: yarn.lock pins date-fns 3.6.0 (verified) and node_modules/date-fns is 3.6.0.",
+    ".npmrc legacy-peer-deps=true is genuinely required - reproduced ERESOLVE (react@19 vs react-day-picker@8 peer) when .npmrc is absent. Ensure Vercel Root Directory is set to `frontend` so the project .npmrc is picked up."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100%"},
+  "seed_data_creation": "None; used existing seeded demo account. No order was saved (dialog closed without submit).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "demo@clientrevive.ai / demo1234 (works)",
+  "context_for_next_testing_agent": "Build/deploy hot-fix verified end to end: yarn build OK, npm install with .npmrc OK, calendar + date-picker (react-day-picker 8.10.1 + date-fns 3.6.0, id locale) fully functional. Only remaining item is a cosmetic duplicate close-X in dialogs. Backend untouched this iteration; regression suites at /app/backend/tests/backend_test.py and test_iteration2.py.",
+  "rca_of_the_issue": "Original Vercel failure had two causes: (1) date-fns 4.x removed the flat CJS/ESM export surface react-day-picker@8 imports (format, differenceInCalendarDays, locale 'id'), (2) npm strict peer resolution rejected react@19 against react-day-picker@8's peer range. Downgrading date-fns to 3.6.0 fixes (1); .npmrc legacy-peer-deps=true fixes (2). The transient 127 in-browser compile errors seen during testing were a stale webpack dev-server module cache from the live version swap, not a code defect - cleared by removing node_modules/.cache and restarting the frontend."
+}

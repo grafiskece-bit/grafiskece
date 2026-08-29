@@ -66,8 +66,10 @@ export default function ClientProfile() {
     finally { setAnalyzeLoading(false); }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
-  useEffect(() => { if (client) analyze(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [client?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (client) analyze(); }, [client?.id]);
 
   const generate = async (modifier = null) => {
     setGenLoading(true);

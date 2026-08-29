@@ -34,6 +34,7 @@ export default function ReminderBanner() {
         console.error("Failed to load today's reminders:", err);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
   const requestPermission = async () => {
